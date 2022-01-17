@@ -17,6 +17,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   var _taskController;
   late List<Task> _tasks;
+  late List<bool> _taskDone;
 
   void saveData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -31,6 +32,8 @@ class _HomeScreenState extends State<HomeScreen> {
     prefs.setString('task', json.encode(list));
     _taskController.text = '';
     Navigator.of(context).pop();
+
+    _getTasks();
   }
 
   void _getTasks() async {
@@ -42,6 +45,22 @@ class _HomeScreenState extends State<HomeScreen> {
       _tasks.add(Task.fromMap(json.decode(d)));
     }
     print(_tasks);
+    _taskDone = List.generate(_tasks.length, (index) => false);
+    setState(() {});
+  }
+
+  void updatePandingTaskList() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<Task> pendingList = [];
+    for (var i = 0; i < _tasks.length; i++)
+      if (!_taskDone[i]) pendingList.add(_tasks[i]);
+
+    var pendingListEncoded = List.generate(
+        pendingList.length, (i) => json.encode(pendingList[i].getMap()));
+
+    prefs.setString('task', json.encode(pendingListEncoded));
+
+    _getTasks();
   }
 
   @override
@@ -68,6 +87,20 @@ class _HomeScreenState extends State<HomeScreen> {
           'Task Manager',
           style: GoogleFonts.montserrat(),
         ),
+        actions: [
+          IconButton(
+            onPressed: updatePandingTaskList,
+            icon: Icon(Icons.save),
+          ),
+          IconButton(
+            onPressed: () async {
+              SharedPreferences prefs = await SharedPreferences.getInstance();
+              prefs.setString('task', json.encode([]));
+              _getTasks();
+            },
+            icon: Icon(Icons.delete),
+          ),
+        ],
         centerTitle: true,
       ),
       body: (_tasks == null)
@@ -80,7 +113,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     (e) => Container(
                       height: 70.0,
                       width: MediaQuery.of(context).size.width,
-                      margin: const EdgeInsets.symmetric(horizontal: 10.0,vertical: 5.0),
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 10.0, vertical: 5.0),
                       padding: const EdgeInsets.only(left: 10.0),
                       alignment: Alignment.centerLeft,
                       decoration: BoxDecoration(
@@ -93,10 +127,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(e.task,style: GoogleFonts.montserrat(),),
-                          Checkbox(value: false, onChanged: (value) {
-                            print('Tap');
-                          },)
+                          Text(
+                            e.task,
+                            style: GoogleFonts.montserrat(),
+                          ),
+                          Checkbox(
+                            value: _taskDone[_tasks.indexOf(e)],
+                            onChanged: (val) {
+                              setState(() {
+                                _taskDone[_tasks.indexOf(e)] = val!;
+                              });
+                            },
+                          )
                         ],
                       ),
                     ),
